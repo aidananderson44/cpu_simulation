@@ -1,0 +1,52 @@
+#define i 1
+#define iter 2
+#define F 3
+
+
+
+clear
+addi 5
+store 1
+
+clear
+addi 12
+store 2
+
+clear
+store 3
+
+clear
+store 4
+
+clear
+addi 1
+store 5
+
+
+
+clear
+addIndr i
+store F
+clear
+add i
+subi 1
+store i
+clear
+addIndr i
+add F
+store F
+clear
+
+add i
+addi 2
+store i
+clear
+add F
+storeIndr i
+
+clear
+add iter
+subi 1
+store iter
+branch -24
+addi 0 (nop)
