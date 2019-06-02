@@ -30,21 +30,21 @@ def assemble(assembly):
         if(len(l) <= 1):
             continue
         words = l.split('\n')[0].split(' ')
-        if len(words):
-            if words[0] not in instruction:
-                if(words[0] == '#define'):
-                    define_dict[words[1]] = to_bin(words[2])  
-                else:
-                    raise Exception('Invalid Syntax on line', i, words[0])
-            
-            elif(len(words) > 1 and words[1] in define_dict):
-                b_instructions += [instruction[words[0]] + define_dict[words[1]]]        
+
+        if words[0] not in instruction:
+            if(words[0] == '#define'):
+                define_dict[words[1]] = to_bin(words[2])  
             else:
-                try:
-                    arg = to_bin(words[1])
-                except:
-                    arg = [0]*8
-                b_instructions += [instruction[words[0]] + arg]
+                raise Exception('Invalid Syntax on line', i, words[0])
+        
+        elif(len(words) > 1 and words[1] in define_dict):
+            b_instructions += [instruction[words[0]] + define_dict[words[1]]]        
+        else:
+            try:
+                arg = to_bin(words[1])
+            except:
+                arg = [0]*8
+            b_instructions += [instruction[words[0]] + arg]
 
     return b_instructions    
 
@@ -52,9 +52,9 @@ def assemble(assembly):
 
 def main():
     a_file = sys.argv[1]
-    assembly = open(a_file, 'r')
-    b_instructions = assemble(assembly)
- 
+    with open(a_file, 'r') as assembly:
+        b_instructions = assemble(assembly)
+    
     if(len(sys.argv) < 3):
         file_out = 'a.out'
     else:

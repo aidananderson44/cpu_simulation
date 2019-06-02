@@ -340,10 +340,10 @@ class minecraft_machine:
 
 def main():
 
+    with open(sys.argv[1], 'r') as assembly:
+        instructions = ass.assemble(assembly)
+        
     mcm = minecraft_machine()
-    a_file = sys.argv[1]
-    assembly = open(a_file, 'r')
-    instructions = ass.assemble(assembly)
     mcm.instr_mem.mem[:len(instructions)] = instructions[:]
     num_iter = 12
     for j in range(25*num_iter):
