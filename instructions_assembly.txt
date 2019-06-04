@@ -2,8 +2,6 @@
 #define iter 2
 #define F 3
 
-
-
 clear
 addi 5
 store 1
@@ -16,13 +14,12 @@ clear
 store 3
 
 clear
+
 store 4
 
 clear
 addi 1
 store 5
-
-
 
 clear
 addIndr i

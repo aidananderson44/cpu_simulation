@@ -1,6 +1,3 @@
-#import numpy as np
-import sys
-
 instruction = {
             'store':[0, 1, 0, 0, 0],
             'storeIndr':[0, 1, 1, 0, 0],
@@ -21,6 +18,13 @@ def to_bin(d):
     zero[-len(b):] = b
     return zero
 
+def isInt(i):
+    try:
+        val = int(i)
+    except ValueError:
+        return False
+    return True
+
 def assemble(assembly):
     b_instructions = []
     i = 0
@@ -30,16 +34,24 @@ def assemble(assembly):
         if(len(l) <= 1):
             continue
         words = l.split('\n')[0].split(' ')
-
+        words = list(filter(lambda x : x is not '', words))
         if words[0] not in instruction:
             if(words[0] == '#define'):
+                if len(words) < 3:
+                    raise SyntaxError('Invalid assembly syntax on line {}. Missing arguments for #define. Must have token followed by constant.'.format(i))
+                if isInt(words[1]):
+                    raise SyntaxError('Invalid assembly syntax on line {}. #define name \'{}\' cannot be numeric.'.format(i, words[1])) 
+                if not isInt(words[2]):
+                    raise SyntaxError('Invalid assembly syntax on line {}. #define value \'{}\' must be numeric.'.format(i, words[2]))
                 define_dict[words[1]] = to_bin(words[2])  
             else:
-                raise Exception('Invalid Syntax on line', i, words[0])
+                raise SyntaxError('Invalid assembly syntax on line {}. Token \'{}\' is not recognized.'.format(i, words[0]))
         
         elif(len(words) > 1 and words[1] in define_dict):
             b_instructions += [instruction[words[0]] + define_dict[words[1]]]        
         else:
+            if len(words) > 1 and not isInt(words[1]):
+                raise SyntaxError('Invalid assembly syntax on line {}. Argument \'{}\' must be numeric.'.format(i, words[1]))
             try:
                 arg = to_bin(words[1])
             except:
@@ -47,8 +59,6 @@ def assemble(assembly):
             b_instructions += [instruction[words[0]] + arg]
 
     return b_instructions    
-
-
 
 def main():
     a_file = sys.argv[1]
@@ -68,4 +78,5 @@ def main():
     f_out.close()
 
 if __name__ == "__main__":
+    import sys
     main()

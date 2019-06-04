@@ -46,7 +46,6 @@ class wire(component):
     def update(self):
         
         x = self.source()
-
         self.w[:self.length-1] = self.w[1:] 
         self.w[self.length-1] = x
     def __call__(self):
@@ -58,18 +57,11 @@ class instruction_buffer(component):
         self.IR = np.zeros(13, dtype = int)
         self.source = source
 
-        
         port_names = ['Im', 'Ls_Ret',  'ALU', 'Data']
-
-
         for i in port_names:
             def f_cr(self, x):
                 return lambda : self(x)
             setattr(self, 'port_{}'.format(i), f_cr(self, i))
-
-
-    def update(self):
-        self.instr_b = self.source()
 
     def cycle(self):
       #  self.IR[:] = self.instr_b[:]
@@ -166,8 +158,8 @@ class main_mem(component):
         self.source2 = source2
         self.source3 = source3
         self.mem = np.zeros(8*256).reshape(256, 8)
-        self.port_0 = lambda : self(0)
-        self.port_1 = lambda : self(1)
+        self.port_0 = lambda : self(1)
+        self.port_1 = lambda : self(2)
     def update(self):
         s = self.source3()
         i = to_dec(s[0:8])
@@ -175,12 +167,8 @@ class main_mem(component):
             return
         self.mem[i] = s[8:16]
     def __call__(self, i):
-        if(i == 0):
-            s = np.sum(self.source1() * 2**(7 - np.arange(8) ))
-            return self.mem[s]
-        if(i == 1):
-            s = np.sum(self.source2() * 2**(7 - np.arange(8) ))
-            return self.mem[s]
+        s = to_dec(getattr(self, 'source{}'.format(i))())
+        return self.mem[s]
 
 class adder(component):
     def __init__(self, source1, source2 = lambda : np.array([0,0,0,0,0,0,0,1]) ):
@@ -338,12 +326,15 @@ class minecraft_machine:
         self.IR.cycle()
         self.ACC.cycle()
 
+    def load_instructions(self, instructions):
+        self.instr_mem.mem[:len(instructions)] = instructions
+
 def main(config):
     with open(config.assembly, 'r') as assembly:
-        instructions = ass.assemble(assembly)
+        instructions = assembler.assemble(assembly)
 
     mcm = minecraft_machine()
-    mcm.instr_mem.mem[:len(instructions)] = instructions
+    mcm.load_instructions(instructions)
 
     for j in range(config.num_cycles):
         mcm.cycle()
@@ -359,7 +350,7 @@ def main(config):
 
     
 if __name__ == "__main__":
-    import assembler as ass
+    import assembler
     import sys
     import argparse
     parser = argparse.ArgumentParser(description= 'Simulate CPU')
