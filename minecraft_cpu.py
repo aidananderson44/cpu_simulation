@@ -1,6 +1,4 @@
 import numpy as np
-import assembler as ass
-import sys
 class component:
     def __init__(self, source):
         self.source = source
@@ -324,7 +322,7 @@ class minecraft_machine:
     def __str__(self):
         return 'Acc {}\nPC {}\nIR {}'.format(str(self.ACC), str(self.PC), str(self.IR))
 
-    def update(self):
+    def _update(self):
         for attr in dir(self):
             f = getattr(self, attr)
 
@@ -334,29 +332,42 @@ class minecraft_machine:
 
 
     def cycle(self):
+        for i in range(6):
+            self._update()
         self.PC.cycle()
         self.IR.cycle()
         self.ACC.cycle()
 
-def main():
-
-    with open(sys.argv[1], 'r') as assembly:
+def main(config):
+    with open(config.assembly, 'r') as assembly:
         instructions = ass.assemble(assembly)
-        
-    mcm = minecraft_machine()
-    mcm.instr_mem.mem[:len(instructions)] = instructions[:]
-    num_iter = 12
-    for j in range(25*num_iter):
-        for i in range(6):
-            mcm.update()
-        mcm.cycle()
-    for i in mcm.mm.mem[int(sys.argv[2]):int(sys.argv[3])]:
-        print(to_dec(i))
-    
- 
 
+    mcm = minecraft_machine()
+    mcm.instr_mem.mem[:len(instructions)] = instructions
+
+    for j in range(config.num_cycles):
+        mcm.cycle()
+    for i in mcm.mm.mem[config.lb:config.ub]:
+        if config.print_dec:
+            print(to_dec(i), end =' ')
+        if config.print_bin:
+            print(i, end = ' ')
+        if not config.print_dec and not config.print_bin:
+            print(to_dec(i))
+        else:
+            print()
+
+    
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print('must include assembly file and memory range')
-        exit()
-    main()
+    import assembler as ass
+    import sys
+    import argparse
+    parser = argparse.ArgumentParser(description= 'Simulate CPU')
+    parser.add_argument('--assembly', required = True, help = 'path to assembly file to run')
+    parser.add_argument('--lb', default = 0,type = int, help = 'lower bound on memory to print')
+    parser.add_argument('--ub', default = 20,type = int, help = 'upper bound on memory to print')
+    parser.add_argument('--num_cycles', default = 300, type = int, help = 'number of cycles to run simulation for')
+    parser.add_argument('--print_dec', default = False, type = bool, help = 'whether it prints memory in decimal')
+    parser.add_argument('--print_bin', default = False, type = bool, help = 'whether it prints memory in binary')
+    config = parser.parse_args()
+    main(config)
