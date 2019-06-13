@@ -1,6 +1,10 @@
-#define i 1
-#define iter 2
-#define F 3
+DEFINE i 1
+DEFINE iter 2
+DEFINE F 3
+
+
+
+
 
 clear
 addi 5
@@ -14,19 +18,19 @@ clear
 store 3
 
 clear
-
 store 4
 
 clear
-addi 1
+addi 1 
 store 5
 
+DEFINE START_LOOP PC
 clear
 addIndr i
 store F
 clear
 add i
-subi 1
+addi -1
 store i
 clear
 addIndr i
@@ -43,7 +47,13 @@ storeIndr i
 
 clear
 add iter
-subi 1
+addi -1
 store iter
-branch -24
-addi 0 (nop)
+branchi START_LOOP - PC
+addi 
+
+DEFINE EXIT_PROGRAM PC
+clear 
+addi 1
+branchi EXIT_PROGRAM - PC
+

@@ -1,20 +1,28 @@
 import itertools
 instruction = {
-            'store':    [0, 1, 0, 0, 0],
-            'storeIndr':[0, 1, 1, 0, 0],
-            'add':      [0, 0, 0, 0, 0],
-            'addi':     [1, 0, 0, 0, 0],
-            'addIndr':  [0, 0, 1, 0, 0],
-            'sub':      [0, 0 ,0, 0, 1],
-            'subi':     [1, 0, 0, 0, 1],
-            'subIndr':  [0, 0, 1, 0, 1],
-            'clear':    [1, 0, 0, 1, 1],
-            'branch':   [1, 0, 0, 1, 0]
+            'store':     [0, 1, 0, 0, 0],
+            'storeIndr': [0, 1, 1, 0, 0],
+            'add':       [0, 0, 0, 0, 0],
+            'addi':      [1, 0, 0, 0, 0],
+            'addIndr':   [0, 0, 1, 0, 0],
+            'subi':      [1, 0, 0, 0, 0],
+            'lsl':       [0, 0 ,0, 0, 1],
+            'lsli':      [1, 0, 0, 0, 1],
+            'lslIndr':   [0, 0, 1, 0, 1],
+            'clear':     [1, 0, 0, 1, 1],
+            'loadi':     [1, 0, 0, 1, 1],
+            'load':      [0, 0, 0, 1, 1],
+            'loadIndr':  [0, 0, 1, 1, 1],
+            'branchi':   [1, 0, 0, 1, 0],
+            'branch':    [0, 0, 0, 1, 0],
+            'branchIndr':[0, 0, 1, 1, 0]
             }
 
 def to_bin(d):
+    
     if(d[0] == '-'):
         d = str(256 - int(d[1:]) )
+    
     b = [int(x) for x in list('{0:0b}'.format(int(d)))][-8:]
     zero = [0 for i in range(8)]
     zero[-len(b):] = b
@@ -28,6 +36,13 @@ def is_(i, f):
     return True
 isInt = lambda i : is_(i, int)
 isNumeric = lambda i : is_(i, float)
+
+def syntax_adjust(instr, expr):
+    if instr[:7] == 'branchi':
+        expr = str(int(expr) - 2)
+    if instr[:3] == 'subi':
+        expr = str(256 - int(expr))
+    return expr
 
 def assemble(assembly):
     b_instructions = []
@@ -65,19 +80,16 @@ def assemble(assembly):
             instr = [instruction[words[0]] + [0]*8]
             if len(words) > 1 and words[1][0] is not '#': # recognized instruction with at least one argument     
                 expr_str = ' '.join(words[1:])
-                try:
-                    
+                try:  
                     expr = str(eval(expr_str, {'__builtins__' : None}, eval_dict))
                     if not isInt(expr):
                         raise SyntaxError('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
                     
-                    if words[0] == 'branch':
-                        expr = str(int(expr) - 2)
+                    expr = syntax_adjust(words[0], expr)
                         
                     instr = [instruction[words[0]] + to_bin(expr)]
                 except TypeError:
-  
-                    instr = [['i', i, words[0], expr_str]] 
+                    instr = [['i', i, words[0], expr_str, eval_dict['PC']]] 
             b_instructions += instr
             eval_dict['PC'] += 1
     final_instr = []
@@ -86,15 +98,15 @@ def assemble(assembly):
         if instr[0] is not 'i':
             final_instr += [instr]
         else:
-            
+            ed = eval_dict.copy()
+            ed['PC'] = instr[4]
             try:
-                expr = str(eval(instr[3], {'__builtins__' : None}, eval_dict))
+                expr = str(eval(instr[3], {'__builtins__' : None}, ed))
             except TypeError:            
                 raise SyntaxError('Invalid expression on line {}.'.format(instr[1]))
             if not isInt(expr):
                 raise SyntaxError('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
-            if instr[2] == 'branch':
-                expr = str(int(expr) - 2)
+            expr = syntax_adjust(instr[2], expr)
             final_instr += [instruction[instr[2]] + to_bin(expr)] 
     return final_instr   
 

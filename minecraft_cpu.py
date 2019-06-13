@@ -7,10 +7,62 @@ class component:
     def __call__(self):
         return self.source()
 
+
+class control(component):
+    def __init__(self, opcode_s, ALU_s):
+        self.opcode_s = opcode_s
+        self.ALU_s = ALU_s
+        self.port_0 = lambda : self(0)
+        self.p0 = 0
+        self.port_1 = lambda : self(1)
+        self.p1 = 0
+        self.port_2 = lambda : self(2)
+        self.p2 = [0, 0]
+        self.port_3 = lambda : self(3)
+        self.p3 = [0, 0, 0]
+    def update(self):
+        o = self.opcode_s()
+        a = self.ALU_s()
+        if o == [0, 0]:
+            self.p0 = 1
+            self.p1 = 0
+            self.p2 = [0,0] 
+            self.p3 = a
+        elif o == [0, 1]:
+            self.p0 = 0
+            self.p1 = 0
+            self.p2 = [0, 0]
+            self.p3 = a
+        elif o == [1, 0]:
+            self.p0 = 0
+            self.p1 = 0
+            self.p2 = [0, 1]
+            self.p3 = a
+        elif o == [1, 1]:
+            if a[0]:
+                self.p0 = 0
+                self.p1 = 1
+                self.p2 = [1, 0]
+                self.p3 = [0, 0]
+            elif a[1]:
+                self.p0 = 0
+                self.p1 = 1
+                self.p2 = [1, 1]
+                self.p3 = [0, 0]
+            else:
+                raise Exception('Invalid Control')
+        else:
+            raise Exception('Invalid Control')
+    def __call__(self, i):
+        return getattr(self, 'p{}'.format(i))
+        
+
 class instruction_memory(component):
-    def __init__(self,source, word_size = 13, num_words = 256, mem = None):
+    def __init__(self,source, word_size = 13, num_words = 256, mem = None, randomized = True):
         if mem is None:
-            self.mem = np.zeros(word_size * num_words, dtype = int).reshape(num_words, word_size)
+            gen_f = np.random.rand if randomized else np.zeros
+            self.mem = gen_f(word_size * num_words).reshape(num_words, word_size)
+            self.mem = np.array(self.mem >= 0.5, dtype = int)
         else:
             self.mem = mem 
         self.source = source
@@ -142,25 +194,28 @@ class load_c(component):
 def to_dec(b):
     return np.sum(b * 2**(7 - np.arange(8) ))
 def to_bin(d, w_len = 8):
-  #  print(d)
+    
     try:
         b = [int(x) for x in list('{0:0b}'.format(d))]
     except:
         return np.zeros(8)
     l = np.arange(len(b)) + (w_len - len(b))
-    x = np.empty(w_len, dtype = int)
+    x = np.zeros(w_len, dtype = int)
     x[l] = b
     return x
 
 class main_mem(component):
-    def __init__(self, source1, source2, source3):
+    def __init__(self, source1, source2, source3, randomized = True):
         self.source1 = source1
         self.source2 = source2
         self.source3 = source3
-        self.mem = np.zeros(8*256).reshape(256, 8)
+        gen_f = np.random.rand if randomized else np.zeros
+        self.mem = gen_f(8*256).reshape(256, 8)
+        self.mem = np.array(self.mem >= 0.5, dtype = int)
+        self.mem[0] = np.zeros(8)
         self.port_0 = lambda : self(1)
         self.port_1 = lambda : self(2)
-    def update(self):
+    def cycle(self):
         s = self.source3()
         i = to_dec(s[0:8])
         if i == 0:
@@ -204,12 +259,16 @@ class ALU(component):
             elif(control == [0, 1]):
                 a = to_dec(acc)
                 d = to_dec(data)
-               # print(a, d)
-                return to_bin(a - d)
+                
+                if d > 7:
+                    d = 256 - d
+                    return to_bin((a >> d))
+                else:
+                    return to_bin(a << d)
             elif(control == [1, 0]):
                 return acc
             elif(control == [1, 1]):
-                return np.zeros(8)
+                return data
             else:
                 raise Exception('Invalid control')
         elif(i == 1):
@@ -223,15 +282,15 @@ class ALU(component):
                 return np.zeros(8)
             
 class minecraft_machine:
-    def __init__(self):
+    def __init__(self, randomized = True):
         self.PC = register(np.zeros(8))
         self.ACC = register(np.zeros(8))
 
-        self.mm = main_mem(None, None, None)
+        self.mm = main_mem(None, None, None, randomized = randomized)
         self.IR = instruction_buffer(source = None)
 
 
-        self.instr_mem = instruction_memory(source = None)
+        self.instr_mem = instruction_memory(source = None, randomized = randomized)
         self.PC2add1_wire = wire(self.PC)
         self.PC_add_1 = adder(source1 = self.PC2add1_wire)
         self.add12skip_wire = wire(self.PC_add_1)
@@ -325,28 +384,43 @@ class minecraft_machine:
         self.PC.cycle()
         self.IR.cycle()
         self.ACC.cycle()
+        self.mm.cycle()
 
     def load_instructions(self, instructions):
         self.instr_mem.mem[:len(instructions)] = instructions
+
+def print_mem(config, mcm):
+    for i in mcm.mm.mem[config.lb : config.ub]:
+        if config.print_dec:
+            print(to_dec(i), end =' ')
+        if config.print_bin:
+            print(i, end = ' ')
+        print()    
 
 def main(config):
     with open(config.assembly, 'r') as assembly:
         instructions = assembler.assemble(assembly)
 
-    mcm = minecraft_machine()
+    mcm = minecraft_machine(randomized = False)
     mcm.load_instructions(instructions)
 
+    print('num instructions',len(instructions))
+
     for j in range(config.num_cycles):
-        mcm.cycle()
-    for i in mcm.mm.mem[config.lb:config.ub]:
-        if config.print_dec:
-            print(to_dec(i), end =' ')
-        if config.print_bin:
-            print(i, end = ' ')
-        if not config.print_dec and not config.print_bin:
-            print(to_dec(i))
-        else:
-            print()
+        try:
+            print('cycle', j)
+            
+            mcm.cycle()
+            print(mcm)
+          #  print(mcm.mm.mem[:10])
+        except IndexError as e:
+            print('Memory contents')
+            print_mem(config, mcm)
+            print(e)
+            exit()
+    print_mem(config, mcm)
+    
+    
 
     
 if __name__ == "__main__":
@@ -354,11 +428,12 @@ if __name__ == "__main__":
     import sys
     import argparse
     parser = argparse.ArgumentParser(description= 'Simulate CPU')
-    parser.add_argument('--assembly', required = True, help = 'path to assembly file to run')
-    parser.add_argument('--lb', default = 0,type = int, help = 'lower bound on memory to print')
-    parser.add_argument('--ub', default = 20,type = int, help = 'upper bound on memory to print')
-    parser.add_argument('--num_cycles', default = 300, type = int, help = 'number of cycles to run simulation for')
-    parser.add_argument('--print_dec', default = False, type = bool, help = 'whether it prints memory in decimal')
-    parser.add_argument('--print_bin', default = False, type = bool, help = 'whether it prints memory in binary')
+  #  parser.add_argument('assembly', dest = 'assembly', help = 'path to assembly file to run')
+    parser.add_argument('assembly', type = str, help = 'path to assembly file to run')
+    parser.add_argument('-lb','--lower_bound', dest = 'lb', default = 0,type = int, help = 'lower bound on memory to print')
+    parser.add_argument('-ub','--upper_bound', dest = 'ub',default = 20,type = int, help = 'upper bound on memory to print')
+    parser.add_argument('-nc', '--num_cycles', dest = 'num_cycles', default = 296, type = int, help = 'number of cycles to run simulation for')
+    parser.add_argument('-pd', '--print_dec', dest = 'print_dec', default = 1, type = int, help = 'whether it prints memory in decimal')
+    parser.add_argument('-pb', '--print_bin', dest = 'print_bin', default = 0, type = int, help = 'whether it prints memory in binary')
     config = parser.parse_args()
     main(config)
