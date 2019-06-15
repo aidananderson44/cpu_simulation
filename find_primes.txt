@@ -1,0 +1,109 @@
+STARTMACRO jal function ra
+loadi PC + 4
+store {ra}
+jmpi {function} - PC
+addi
+ENDMACRO
+
+STARTMACRO return ra
+load {ra}
+addi -PC - 4
+store j
+jmp j
+addi
+ENDMACRO
+
+
+STARTMACRO loadi x
+clear
+addi {x}
+ENDMACRO
+
+STARTMACRO load x
+clear
+add {x}
+ENDMACRO
+
+STARTMACRO loadIndr x
+clear
+addIndr {x}
+ENDMACRO
+
+
+DEFINE i 1
+DEFINE j 2
+DEFINE arg1 3
+DEFINE ret 4
+DEFINE ra 5
+DEFINE iter 6
+
+loadi 7
+store iter
+
+
+loadi 1
+store i
+
+DEFINE FIND_PRIMES_LOOP PC
+clear
+store ret
+load i
+addi 1
+store i
+store arg1
+jal IS_PRIME, ra
+
+
+load ret
+skipCondi 0xF
+addi
+jmpi FIND_PRIMES_LOOP - PC
+addi
+load i
+storeIndr iter
+load iter
+addi 1
+store iter
+jmpi FIND_PRIMES_LOOP - PC 
+addi
+
+
+#arg1: number to check is prime
+#ret: 1 if prime, 0 o/w
+DEFINE IS_PRIME PC
+loadi 1
+store j
+DEFINE PRIME_LOOP PC
+load j
+addi 1
+store j
+sub arg1
+skipCondi 0xFF
+addi
+jmpi PRIME_SUCCESS - PC
+addi
+load arg1
+mod j
+skipCondi 0
+addi
+jmpi PRIME_LOOP - PC
+addi
+
+
+#FAIL
+loadi 0
+store ret
+return ra
+
+DEFINE PRIME_SUCCESS PC
+loadi 1
+store ret
+return ra
+#END OF IS_PRIME
+
+
+DEFINE EXIT_PROGRAM PC
+jmpi EXIT_PROGRAM - PC
+addi
+
+

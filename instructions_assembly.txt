@@ -1,59 +1,55 @@
 DEFINE i 1
 DEFINE iter 2
-DEFINE F 3
+DEFINE temp 3
 
 
 
 
 
-clear
-addi 5
-store 1
-
-clear
-addi 12
-store 2
+loadi 5
+store i
 
 clear
-store 3
+loadi 12
+store iter
 
-clear
+clear 
 store 4
 
 clear
-addi 1 
+addi 1
 store 5
 
 DEFINE START_LOOP PC
 clear
 addIndr i
-store F
+store temp
 clear
 add i
 addi -1
 store i
 clear
 addIndr i
-add F
-store F
+add temp
+store temp
 clear
 
 add i
 addi 2
 store i
 clear
-add F
+add temp
 storeIndr i
 
 clear
 add iter
 addi -1
 store iter
-branchi START_LOOP - PC
-addi 
+skipCond 0
+addi 0
+jmpi START_LOOP - PC
+addi 0
 
 DEFINE EXIT_PROGRAM PC
-clear 
-addi 1
-branchi EXIT_PROGRAM - PC
-
+jmpi EXIT_PROGRAM
+addi 0

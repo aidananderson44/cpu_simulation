@@ -1,21 +1,38 @@
 import itertools
 instruction = {
-            'store':     [0, 1, 0, 0, 0],
-            'storeIndr': [0, 1, 1, 0, 0],
-            'add':       [0, 0, 0, 0, 0],
-            'addi':      [1, 0, 0, 0, 0],
-            'addIndr':   [0, 0, 1, 0, 0],
-            'subi':      [1, 0, 0, 0, 0],
-            'lsl':       [0, 0 ,0, 0, 1],
-            'lsli':      [1, 0, 0, 0, 1],
-            'lslIndr':   [0, 0, 1, 0, 1],
-            'clear':     [1, 0, 0, 1, 1],
-            'loadi':     [1, 0, 0, 1, 1],
-            'load':      [0, 0, 0, 1, 1],
-            'loadIndr':  [0, 0, 1, 1, 1],
-            'branchi':   [1, 0, 0, 1, 0],
-            'branch':    [0, 0, 0, 1, 0],
-            'branchIndr':[0, 0, 1, 1, 0]
+            'addi' : [0, 0, 0, 0, 0],
+            'add' : [0, 1, 0, 0, 0],
+            'addIndr' : [1, 0, 0, 0, 0],
+            'subi' : [0, 0, 0, 0, 1],
+            'sub' : [0, 1, 0, 0, 1],
+            'subIndr' : [1, 0, 0, 0, 1],
+            'muli' : [0, 0, 0, 1, 0],
+            'mul' : [0, 1, 0, 1, 0],
+            'mulIndr' : [1, 0, 0, 1, 0],
+            'modi' : [0, 0, 0, 1, 1],
+            'mod' : [0, 1, 0, 1, 1],
+            'modIndr' : [1, 0, 0, 1, 1],
+            'lsli' : [0, 0, 1, 0, 0],
+            'lsl' : [0, 1, 1, 0, 0],
+            'lslIndr' : [1, 0, 1, 0, 0],
+            'andi' : [0, 0, 1, 0, 1],
+            'and' : [0, 1, 1, 0, 1],
+            'andIndr' : [1, 0, 1, 0, 1],
+            'skipCondi' : [0, 0, 1, 1, 0],
+            'skipCond' : [0, 1, 1, 1, 0],
+            'skipCondIndr' : [1, 0, 1, 1, 0],
+            'jmpi' : [0, 0, 1, 1, 1],
+            'jmp' : [0, 1, 1, 1, 1],
+            'jmpIndr' : [1, 0, 1, 1, 1],
+            'store' : [1, 1, 0, 0, 1],
+            'storeIndr' : [1, 1, 0, 0, 0],
+            'clear' : [0, 0, 0, 1, 0],
+            'divi' : [1, 1, 0, 1, 0],
+            'div1' : [1, 1, 0, 1, 1],
+            'divIndr' : [1, 1, 1, 0, 0],
+            'ori' : [1, 1, 1, 0, 1],
+            'or' : [1, 1, 1, 1, 0],
+            'orIndr' : [1, 1, 1, 1, 1],
             }
 
 def to_bin(d):
@@ -38,10 +55,10 @@ isInt = lambda i : is_(i, int)
 isNumeric = lambda i : is_(i, float)
 
 def syntax_adjust(instr, expr):
-    if instr[:7] == 'branchi':
+    if instr[:7] == 'jmpi':
         expr = str(int(expr) - 2)
-    if instr[:3] == 'subi':
-        expr = str(256 - int(expr))
+    if instr[:5] == 'clear':
+        expr = '0'
     return expr
 
 def assemble(assembly):
@@ -49,34 +66,61 @@ def assemble(assembly):
     eval_dict = {'len' : len, 'dir' : dir, 'PC' : 0}
     num_builtin = len(eval_dict) + 1
     eval_dict['num_builtin'] = num_builtin
-    for l, i in zip(assembly, itertools.count(1)):
-        
+    macro_dict = {}
+    assembly_list = []
+    for i in assembly:
+        assembly_list += [i]
+    
+    in_macro = None
+    for l, i in zip(assembly_list, itertools.count(1)):
         if(len(l) <= 1):
             continue
         words = l.split('\n')[0].split(' ')
         words = list(filter(lambda x : x is not '', words))
         if words[0][0] is '#':
-            continue
-        if words[0] not in instruction: # not builtin instruction
-            if(words[0] == 'DEFINE'):  # check for previously defined token
-                if len(words) < 3:
-                    raise SyntaxError('Invalid assembly syntax on line {}. Missing arguments for #define. Must have name followed by constant.'.format(i))
-                expr_str = ' '.join(words[2:])
-                try:
-                    expr = str(eval(expr_str, {'__builtins__' : None}, eval_dict))
-                except TypeError:
-                    raise SyntaxError('Invalid expression on line {}.'.format(i))
-                
-                if isNumeric(words[1]):
-                    raise SyntaxError('Invalid assembly syntax on line {}. #define name \'{}\' cannot be numeric.'.format(i, words[1])) 
-                elif not isInt(expr):
-                    raise SyntaxError('Invalid assembly syntax on line {}. #define value \'{}\' must be an integer.'.format(i, expr))
-                else:     
-                    eval_dict[words[1]] = int(expr)
-            else: 
-                raise SyntaxError('Invalid assembly syntax on line {}. Token \'{}\' is not recognized.'.format(i, words[0]))
-        
-        else: 
+            pass
+        elif words[0] in macro_dict:
+            vals = ' '.join(words[1:])
+            vals = vals.split(',')
+            num_vars = len(macro_dict[words[0]][0])
+            num_vals = len(vals)
+            vals = vals + ['']*(num_vars - num_vals)
+            v_dict = dict(zip(macro_dict[words[0]][0], vals))
+            for instr, j in zip(macro_dict[words[0]][1:], itertools.count(0)):
+                assembly_list.insert(i + j, instr.format(**v_dict)) 
+    
+        elif words[0] == 'STARTMACRO':
+            if len(words) < 2:
+                raise SyntaxError('Error on line {}. Macro definition must contantain a name.'.format(i))
+            in_macro = words[1]
+            m_vars = words[2:]
+            macro_dict[words[1]] = [tuple(m_vars)]
+        elif words[0] == 'ENDMACRO':
+            in_macro = None
+            
+            
+        elif in_macro:
+            if words[0] == 'DEFINE':
+                raise SyntaxError('Invalid assembly syntax on line {}. Cannot put DEFINE statement in a macro'.format(i))
+            macro_dict[in_macro] += [' '.join(words)] 
+
+        elif(words[0] == 'DEFINE'):  # check for previously defined token
+            if len(words) < 3:
+                raise SyntaxError('Invalid assembly syntax on line {}. Missing arguments for #define. Must have name followed by constant.'.format(i))
+            expr_str = ' '.join(words[2:])
+            try:
+                expr = str(eval(expr_str, {'__builtins__' : None}, eval_dict))
+            except TypeError:
+                raise SyntaxError('Invalid expression on line {}.'.format(i))
+            
+            if isNumeric(words[1]):
+                raise SyntaxError('Invalid assembly syntax on line {}. #define name \'{}\' cannot be numeric.'.format(i, words[1])) 
+            elif not isInt(expr):
+                raise SyntaxError('Invalid assembly syntax on line {}. #define value \'{}\' must be an integer.'.format(i, expr))
+            else:     
+                eval_dict[words[1]] = int(expr)
+
+        elif words[0] in instruction: 
             instr = [instruction[words[0]] + [0]*8]
             if len(words) > 1 and words[1][0] is not '#': # recognized instruction with at least one argument     
                 expr_str = ' '.join(words[1:])
@@ -92,6 +136,8 @@ def assemble(assembly):
                     instr = [['i', i, words[0], expr_str, eval_dict['PC']]] 
             b_instructions += instr
             eval_dict['PC'] += 1
+        else:
+            raise SyntaxError('Invalid assembly syntax on line {}. Token \'{}\' is not recognized.'.format(i, words[0]))
     final_instr = []
 
     for instr in b_instructions:
@@ -108,6 +154,8 @@ def assemble(assembly):
                 raise SyntaxError('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
             expr = syntax_adjust(instr[2], expr)
             final_instr += [instruction[instr[2]] + to_bin(expr)] 
+    for i in assembly_list:
+        print(i)
     return final_instr   
 
 def main():
