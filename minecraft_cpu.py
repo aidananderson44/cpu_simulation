@@ -1,106 +1,55 @@
 import numpy as np
+from itertools import product
 class component:
-    def __init__(self, source):
-        self.source = source
+    def __init__(self):
+        pass
     def update(self):
         pass
-    def __call__(self):
-        return self.source()
-
-
 class control(component):
     def __init__(self, opcode_s, ALU_s):
+        super().__init__()
         self.opcode_s = opcode_s
         self.ALU_s = ALU_s
+        self.ALU_s_val = np.zeros(3, dtype = int)
+        self.opcode_s_val = np.zeros(2, dtype = int)
         self.port_0 = lambda : self(0)
-        self.p0 = 0
         self.port_1 = lambda : self(1)
-        self.p1 = 0
         self.port_2 = lambda : self(2)
-        self.p2 = [0, 0]
         self.port_3 = lambda : self(3)
-        self.p3 = [0, 0, 0]
-        self.port_4 = lambda : self(4)
-        self.p4 = [0, 0]
-    def update(self):
-        o = list(self.opcode_s())
-        a = list(self.ALU_s())
-        if o == [0, 0]:
-            self.p0 = [1]
-            self.p1 = [0]
-            self.p2 = [0,0] 
-            self.p3 = a
-            self.p4 = [0, 0]
-        elif o == [0, 1]:
-            self.p0 = [0]
-            self.p1 = [0]
-            self.p2 = [0, 0]
-            self.p3 = a
-            self.p4 = [0, 0]
-        elif o == [1, 0]:
-            self.p0 = [0]
-            self.p1 = [0]
-            self.p2 = [0, 1]
-            self.p3 = a
-            self.p4 = [0, 0]
-        elif o == [1, 1]:
-            if a == [0, 0, 1]:
-                self.p0 = [0]
-                self.p1 = [1]
-                self.p2 = [1, 0]
-                self.p3 = [0, 0, 0]
-                self.p4 = [0, 0]
-            elif a == [0, 0, 0]:
-                self.p0 = [0]
-                self.p1 = [0]
-                self.p2 = [1, 1]
-                self.p3 = [0, 0, 0]
-                self.p4 = [0, 0]
-            elif a == [0, 1, 0]:
-                self.p0 = [1]
-                self.p1 = [0]
-                self.p2 = [0,0] 
-                self.p3 = a
-                self.p4 = [0, 1]
-            elif a == [0, 1, 1]:
-                self.p0 = [0]
-                self.p1 = [0]
-                self.p2 = [0, 0]
-                self.p3 = a
-                self.p4 = [0, 1]
-            elif o == [1, 0, 0]:
-                self.p0 = [0]
-                self.p1 = [0]
-                self.p2 = [0, 1]
-                self.p3 = a
-                self.p4 = [0, 1]
-            elif a == [1, 0, 1]:
-                self.p0 = [1]
-                self.p1 = [0]
-                self.p2 = [0,0] 
-                self.p3 = a
-                self.p4 = [1, 0]
-            elif a == [1, 1, 0]:
-                self.p0 = [0]
-                self.p1 = [0]
-                self.p2 = [0, 0]
-                self.p3 = a
-                self.p4 = [1, 0]
-            elif o == [1, 1, 1]:
-                self.p0 = [0]
-                self.p1 = [0]
-                self.p2 = [0, 1]
-                self.p3 = a
-                self.p4 = [1, 0]
 
+        self.lookup_table = {}
+        bin_3 = list(product([0, 1], repeat = 3))
+        for b in bin_3:
+            self.lookup_table[str([0, 0] + list(b))] = [[1], [0], [0, 0], [0, 0]]
+        for b in bin_3:
+            self.lookup_table[str([0, 1] + list(b))] = [[0], [0], [0, 0], [0, 0]]
+        for b in bin_3:
+            self.lookup_table[str([1, 0] + list(b))] = [[0], [0], [0, 1], [0, 0]]
+                
+        self.lookup_table[str([1, 1, 0, 0, 0])] = [[0], [0], [1, 1], [0, 0]]
+        self.lookup_table[str([1, 1, 0, 0, 1])] = [[0], [1], [1, 0], [0, 0]]
+        self.lookup_table[str([1, 1, 0, 1, 0])] = [[1], [0], [0, 0], [0, 1]]
+        self.lookup_table[str([1, 1, 0, 1, 1])] = [[0], [0], [0, 0], [0, 1]]
+        self.lookup_table[str([1, 1, 1, 0, 0])] = [[0], [0], [0, 1], [0, 1]]
+        self.lookup_table[str([1, 1, 1, 0, 1])] = [[1], [0], [0, 0], [1, 0]]
+        self.lookup_table[str([1, 1, 1, 1, 0])] = [[0], [0], [0, 0], [1, 0]]
+        self.lookup_table[str([1, 1, 1, 1, 1])] = [[0], [0], [0, 1], [1, 0]]
+
+    def update(self):
+        self.opcode_s_val = self.opcode_s()
+        self.ALU_s_val = self.ALU_s()
+    def __call__(self, i):
+        o = list(self.opcode_s_val)
+        a = list(self.ALU_s_val)
+        if str(o + a) in self.lookup_table:
+            return self.lookup_table[str(o + a)][i]
         else:
             raise Exception('Invalid Control')
-    def __call__(self, i):
-        return getattr(self, 'p{}'.format(i))
         
 
 class instruction_memory(component):
     def __init__(self,source, word_size = 13, num_words = 256, mem = None, randomized = True):
+        super().__init__()
         if mem is None:
             gen_f = np.random.rand if randomized else np.zeros
             self.mem = gen_f(word_size * num_words).reshape(num_words, word_size)
@@ -108,13 +57,16 @@ class instruction_memory(component):
         else:
             self.mem = mem 
         self.source = source
-
+        self.source_val = np.zeros(8)
+    def update(self):
+        self.source_val = self.source()
     def __call__(self):
-        s = np.sum(self.source() * 2**(7 - np.arange(8) ))
+        s = np.sum(self.source_val * 2**(7 - np.arange(8) ))
         return self.mem[s]
 
 class register(component):
     def __init__(self, pc = None, source = None):
+        super().__init__()
         self.pc = pc
         self.source = source
     def cycle(self):
@@ -124,30 +76,44 @@ class register(component):
     def __str__(self):
         return '{}'.format(self.pc)
 
-class merge(component):
-    def __init__(self, source1, source2):
+class binary_op(component):
+    def __init__(self, source1, source2, function):
+        super().__init__()
         self.source1 = source1
         self.source2 = source2
+        self.source1_val = np.zeros(8)
+        self.source2_val = np.zeros(8)
+        self.fun = function
+    def update(self):
+        self.source1_val = self.source1()
+        self.source2_val = self.source2()
     def __call__(self):
-        return self.source1() | self.source2()
+        return self.fun(self.source1_val, self.source2_val)
 
 class wire(component):
     def __init__(self,source,width = 8, length = 1):
+        super().__init__()
         self.length = length
         self.width = width
         self.w = np.zeros(length*width, dtype = int).reshape(length, width)
         self.source = source
+    
     def update(self):
         
         x = self.source()
+        #w = np.zeros(self.length*self.width, dtype = int).reshape(self.length, self.width)
+        #w[:self.length-1] = self.w[1:] 
+        #w[self.length-1] = x
         self.w[:self.length-1] = self.w[1:] 
-        
         self.w[self.length-1] = x
+        
     def __call__(self):
         return self.w[0]
+    
 
 class instruction_buffer(component):
     def __init__(self, source):
+        super().__init__()
         self.instr_b = np.zeros(13, dtype = int)
         self.IR = np.zeros(13, dtype = int)
         self.source = source
@@ -180,8 +146,11 @@ class instruction_buffer(component):
 
 class demux(component):
     def __init__(self, dsource, csource, port_r = None,num = 2, width = 8):
+        super().__init__()
         self.csource = csource
+        self.csource_val = np.zeros(width)
         self.dsource = dsource
+        self.dsource_val = np.zeros(num)
         self.control = None
 
         self.width = width
@@ -194,43 +163,20 @@ class demux(component):
                 return lambda : self(x)
             setattr(self, 'port_{}'.format(j), f_cr(self, i))
 
+    def update(self):
+        self.dsource_val = self.dsource()
+        self.csource_val = self.csource()
     def __call__(self, i):
-        control = list(self.csource())
+        control = list(self.csource_val)
 
         if(type(i) is not list):
             i = [i]
 
         if(i == control):
-            return self.dsource()
+            return self.dsource_val
         else:
             return np.zeros(self.width)
-class gate1(component):
-    def __init__(self, source):
-        self.source = source
-    def __call__(self):
-        s = self.source()
-        ls = s[0]
-        ret = s[1]
-        return (ls ^ ret) & ls
-class store_c(component):
-    def __init__(self, source, acc_source):
-        self.source = source
-        self.acc_source = acc_source
-    def __call__(self):
-        x = np.append(self.source(), self.acc_source())
-        return x
 
-class load_c(component):
-    def __init__(self, addr_source, data_source = None):
-        self.addr_source = addr_source
-        self.data_source = data_source
-        self.port_0 = lambda : self(0)
-        self.port_1 = lambda : self(1)
-    def __call__(self, i):
-        if(i == 0):
-            return self.addr_source()
-        elif(i == 1):
-            return self.data_source()
 
 def to_dec(b):
     return np.sum(b * 2**(7 - np.arange(8) ))
@@ -241,62 +187,84 @@ def to_bin(d, w_len = 8):
         b = [int(x) for x in list('{0:0b}'.format(d))]
     except:
         return np.zeros(8)
-    l = np.arange(len(b)) + (w_len - len(b))
+
+    l = min(w_len, len(b))
     x = np.zeros(w_len, dtype = int)
-    x[l] = b
+    x[-l:] = b[-l:]
     return x
 
 class main_mem(component):
-    def __init__(self, source1, source2, source3, randomized = True):
+    def __init__(self, source1, source2, source3,source4 = None, randomized = True):
+        super().__init__()
         self.source1 = source1
         self.source2 = source2
+        self.source1_val = np.zeros(8)
+        self.source2_val = np.zeros(8)
         self.source3 = source3
+        self.source4 = source4
         gen_f = np.random.rand if randomized else np.zeros
         self.mem = gen_f(8*256).reshape(256, 8)
         self.mem = np.array(self.mem >= 0.5, dtype = int)
         self.mem[0] = np.zeros(8)
         self.port_0 = lambda : self(1)
         self.port_1 = lambda : self(2)
+
+        
+    def update(self):
+        self.source1_val = self.source1()
+        self.source2_val = self.source2()
+
     def cycle(self):
-        s = self.source3()
-        i = to_dec(s[0:8])
+        addr = self.source3()
+        val = self.source4()
+        i = to_dec(addr)
         if i == 0:
             return
-        self.mem[i] = s[8:16]
+        self.mem[i] = val
     def __call__(self, i):
-        s = to_dec(getattr(self, 'source{}'.format(i))())
+        s = to_dec(getattr(self, 'source{}_val'.format(i)))
         return self.mem[s]
-
-class adder(component):
-    def __init__(self, source1, source2 = lambda : np.array([0,0,0,0,0,0,0,1]) ):
-        self.source1 = source1
-        self.source2 = source2
-    def __call__(self):
-      #  print(self.source1, self.source2)
-        s1 = to_dec(self.source1())
-        s2 = to_dec(self.source2())
-        b = to_bin(s1 + s2)
-
-        return b
 
 class ALU(component):
     def __init__(self, csource, csource_extra, dsource, acc_source):
+        super().__init__()
         self.csource = csource
         self.csource_extra = csource_extra
         self.dsource = dsource
         self.acc_source = acc_source
+        self.csource_val = np.zeros(3)
+        self.csource_extra_val = np.zeros(2)
+        self.dsource_val = np.zeros(8)
+        self.acc_source_val = np.zeros(8)
         self.acc_port = lambda : self(0)
         self.skip_port = lambda : self(1)
-    def __call__(self, i):
-        control = list(self.csource())
-        control_extra = list(self.csource_extra())
-        acc = self.acc_source()
-        data = self.dsource()
-      #  print(control)
 
+        self.acc_lookup = {
+            str([0, 0, 0]) : lambda x, y, acc : to_bin(x + y),
+            str([0, 0, 1]) : lambda x, y, acc : to_bin(x - y),
+            str([0, 1, 0]) : lambda x, y, acc : to_bin(x * y),
+            str([0, 1, 1]) : lambda x, y, acc : to_bin(x % y),
+            str([1, 0, 0]) : lambda x, y, acc : to_bin((a >> (256 - d))) if d > 7 else to_bin(a << d),
+            str([1, 0, 1]) : lambda x, y, acc : to_bin(x & y),
+            str([1, 1, 0]) : lambda x, y, acc : acc,
+            str([1, 1, 1]) : lambda x, y, acc : acc
+        }
+
+    def update(self):
+        self.csource_val = self.csource()
+        self.csource_extra_val = self.csource_extra()
+        self.dsource_val = self.dsource()
+        self.acc_source_val = self.acc_source()
+    def __call__(self, i):
+        control = list(self.csource_val)
+        control_extra = list(self.csource_extra_val)
+        acc = self.acc_source_val
+        data = self.dsource_val
+      #  print(control)
+        a = to_dec(acc)
+        d = to_dec(data)
 
         if(i == 0):
-            #print(control)
             if 1 in control_extra:
                 if control_extra[1]:
                     a = to_dec(acc)
@@ -305,44 +273,12 @@ class ALU(component):
                 if control_extra[0]:
                     a = to_dec(acc)
                     d = to_dec(data)
-                    return to_bin(a | d)
-            elif(control == [0, 0, 0]):
-               # print('data', data)
-                a = to_dec(acc)
-                d = to_dec(data)
-                return to_bin(a + d)
-
-            elif control == [0, 0, 1]:
-                
-                a = to_dec(acc)
-                d = to_dec(data)
-                return to_bin(a - d)
-
-            elif control == [0, 1, 0]:
-                a = to_dec(acc)
-                d = to_dec(data)
-                return to_bin(a * d)
-
-            elif control == [0, 1, 1]:
-                a = to_dec(acc)
-                d = to_dec(data)
-                return to_bin(a % d)
-
-            elif(control == [1, 0, 0]):
-                a = to_dec(acc)
-                d = to_dec(data)
-                
-                if d > 7:
-                    d = 256 - d
-                    return to_bin((a >> d))
-                else:
-                    return to_bin(a << d)
-            elif control == [1, 0, 1]:
-                a = to_dec(acc)
-                d = to_dec(data)
-                return to_bin(a & d)
+                    return to_bin(int(a ** (d / 10.0)))
+            elif str(control) in self.acc_lookup:
+                return self.acc_lookup[str(control)](a, d, acc)
             else:
-                return acc
+                raise Exception('Invalid Control')
+            
         elif(i == 1):
             if 1 in control_extra:
                 return np.zeros(8)
@@ -369,86 +305,80 @@ class minecraft_machine:
     def __init__(self, randomized = True):
         self.PC = register(np.zeros(8))
         self.ACC = register(np.zeros(8))
-        
-        self.mm = main_mem(None, None, None, randomized = randomized)
-        self.IR = instruction_buffer(source = None)
+        self.Instruction_Memory = instruction_memory(source = None, randomized = randomized)
+        self.Instruction_Register = instruction_buffer(source = None)
+        self.control = control(opcode_s = None, ALU_s = None)
+        self.im_demux = demux(dsource = None, csource = None)
+        self.ls_ret_demux = demux(dsource = None, csource = None)
+        self.fmux = demux(dsource = None, csource = None, port_r = [[0,0], [0,1], [1,1]])
+        self.ALU = ALU(csource = None, csource_extra = None, dsource = None, acc_source = None)
+        self.Main_Memory = main_mem(source1 = None, source2 = None, source3 = None, source4 = None, randomized = randomized)
+        self.add1 = binary_op(source1 = None, source2 = lambda : to_bin(1), function = lambda x, y : to_bin(to_dec(x) + to_dec(y)))
+        self.adder = binary_op(source1 = None, source2 = None, function = lambda x, y : to_bin(to_dec(x) + to_dec(y)))
+        self.store_merge = binary_op(source1 = None, source2 = None, function = lambda x, y : x | y)
+        self.ALU_merge1 = binary_op(source1 = None, source2 = None, function = lambda x, y : x | y)
+        self.ALU_merge2 = binary_op(source1 = None, source2 = None, function = lambda x, y : x | y)
 
-        self.control = control(self.IR.port_opcode, self.IR.port_ALU)
-        self.instr_mem = instruction_memory(source = None, randomized = randomized)
-        self.PC2add1_wire = wire(self.PC)
-        self.PC_add_1 = adder(source1 = self.PC2add1_wire)
-        self.add12skip_wire = wire(self.PC_add_1)
+        self.PC_port = wire(self.PC)
+        self.ACC_port = wire(self.ACC)
+        self.Instruction_Memory_port = wire(self.Instruction_Memory, width = 13)
+        self.Instruction_Register_port_opcode = wire(self.Instruction_Register.port_opcode, width = 2)
+        self.Instruction_Register_port_ALU = wire(self.Instruction_Register.port_ALU, width = 3)
+        self.Instruction_Register_port_Data = wire(self.Instruction_Register.port_Data)
+        self.control_port_0 = wire(self.control.port_0, width = 1)
+        self.control_port_1 = wire(self.control.port_1, width = 1)
+        self.control_port_2 = wire(self.control.port_2, width = 2)
+        self.control_port_3 = wire(self.control.port_3, width = 2)
+        self.im_demux_port_0 = wire(self.im_demux.port_0)
+        self.im_demux_port_1 = wire(self.im_demux.port_1)
+        self.ls_ret_demux_port_0 = wire(self.ls_ret_demux.port_0)
+        self.ls_ret_demux_port_1 = wire(self.ls_ret_demux.port_1)
+        self.fmux_port_0 = wire(self.fmux.port_0)
+        self.fmux_port_1 = wire(self.fmux.port_1)
+        self.fmux_port_2 = wire(self.fmux.port_2)
+        self.ALU_port_acc = wire(self.ALU.acc_port)
+        self.ALU_port_skip = wire(self.ALU.skip_port)
+        self.Main_Memory_port_0 = wire(self.Main_Memory.port_0)
+        self.Main_Memory_port_1 = wire(self.Main_Memory.port_1)
+        self.add1_port = wire(self.add1)
+        self.adder_port = wire(self.adder)
+        self.store_merge_port = wire(self.store_merge)
+        self.ALU_merge1_port = wire(self.ALU_merge1)
+        self.ALU_merge2_port = wire(self.ALU_merge2)
 
-        self.pc2instr_wire = wire(self.PC)
-        self.instr_mem.source = self.pc2instr_wire
-
-        self.instr2IR_wire = wire(self.instr_mem, width = 13)
-        self.IR.source = self.instr2IR_wire
-
-        
-
-        self.data_wire = wire(self.IR.port_Data, width = 8)
-
-        self.im_demux = demux(dsource = self.data_wire, csource = self.control.port_0)
-        self.im2ALU_wire = wire(self.im_demux.port_1)
-        self.im2LS_wire = wire(self.im_demux.port_0)
-
-      
-
-        self.ls_mux = demux(dsource = self.im2LS_wire, csource = self.control.port_1)
-
-        self.ls_mux2load_wire = wire(self.ls_mux.port_0)
-        self.ls_mux2store_wire = wire(self.ls_mux.port_1)
-
-       # self.load1 = load_c(addr_source = self.ls_mux2load_wire)
-       # self.load1mm_wire = (self.load1.port_0)
-       # self.mm.source1 = self.load1mm_wire
-        self.mm.source1 = self.ls_mux2load_wire
-
-        self.mm2load1_wire = wire(self.mm.port_0)
-      #  self.load1.data_source = self.mm2load1_wire
-      #  self.load12demux_wire = self.load1.port_1
-
-     #   self.fmux = demux(dsource = self.load12demux_wire, csource = self.ls_ret2_wire, port_r = [[0,0], [0,1], [1,1]])
-        self.fmux = demux(dsource = self.mm2load1_wire, csource = self.control.port_2, port_r = [[0,0], [0,1], [1,1]])
-        self.fmux2store_wire = wire(self.fmux.port_2)
-      
-        self.store_merge = merge(self.fmux2store_wire, self.ls_mux2store_wire)
-        self.storemerge2Store_wire = wire(self.store_merge)
-        self.Acc2Store_wire = wire(self.ACC)
-        self.store = store_c(source = self.storemerge2Store_wire, acc_source = self.Acc2Store_wire)
-        self.store2mm_wire = wire(self.store, width = 16)
-        self.mm.source3 = self.store2mm_wire
-
-        self.fmux2load2_wire = self.fmux.port_1
-
-        self.mm2load2_wire = wire(self.mm.port_1)
-        self.load2 = load_c(addr_source = self.fmux2load2_wire, data_source=self.mm2load2_wire)
-        self.load22mm_wire = wire(self.load2.port_0)
-        self.mm.source2 = self.load22mm_wire
-
-        self.load22alu_wire = wire(self.load2.port_1)
-        self.fmux2alu_wire = wire(self.fmux.port_0)
-        self.fmerge = merge(self.load22alu_wire, self.fmux2alu_wire)
-        self.fmerge2ALU_wire = wire(self.fmerge)
-        self.fmerge_22ALU = merge(self.fmerge2ALU_wire, self.im2ALU_wire)
-        
-        self.toALU_wire = wire(self.fmerge_22ALU)
-
-        self.acc2ALU_wire = wire(self.ACC)
-        self.ALU = ALU(csource = self.control.port_3,csource_extra = self.control.port_4, dsource = self.toALU_wire, acc_source = self.acc2ALU_wire)
-        self.ALU2ACC_wire = wire(self.ALU.acc_port)
-        self.ACC.source = self.ALU2ACC_wire
-        self.ALU2PC_wire = wire(self.ALU.skip_port)
-
-        self.skip_adder = adder(self.add12skip_wire, self.ALU2PC_wire)
-        self.skip2PC_wire = wire(self.skip_adder)
-        self.PC.source = self.skip2PC_wire
-
+        self.PC.source = self.adder_port
+        self.ACC.source = self.ALU_port_acc
+        self.Instruction_Memory.source = self.PC_port
+        self.Instruction_Register.source = self.Instruction_Memory_port
+        self.control.ALU_s = self.Instruction_Register_port_ALU
+        self.control.opcode_s = self.Instruction_Register_port_opcode
+        self.im_demux.dsource = self.Instruction_Register_port_Data
+        self.im_demux.csource = self.control_port_0
+        self.ls_ret_demux.dsource = self.im_demux_port_0
+        self.ls_ret_demux.csource = self.control_port_1
+        self.fmux.dsource = self.Main_Memory_port_0
+        self.fmux.csource = self.control.port_2
+        self.ALU.csource = self.Instruction_Register_port_ALU
+        self.ALU.csource_extra = self.control.port_3
+        self.ALU.dsource = self.ALU_merge2_port
+        self.ALU.acc_source = self.ACC_port
+        self.Main_Memory.source1 = self.ls_ret_demux_port_0
+        self.Main_Memory.source2 = self.fmux_port_1
+        self.Main_Memory.source3 = self.store_merge_port
+        self.Main_Memory.source4 = self.ACC_port
+        self.add1.source1 = self.ALU_port_skip
+        self.adder.source1 = self.PC_port
+        self.adder.source2 = self.add1_port
+        self.store_merge.source1 = self.ls_ret_demux_port_1
+        self.store_merge.source2 = self.fmux_port_2
+        self.ALU_merge1.source1 = self.fmux_port_0
+        self.ALU_merge1.source2 = self.Main_Memory_port_1
+        self.ALU_merge2.source1 = self.ALU_merge1_port
+        self.ALU_merge2.source2 = self.im_demux_port_1
 
 
     def __str__(self):
-        return 'Acc {}\nPC {}\nIR {}'.format(str(self.ACC), str(self.PC), str(self.IR))
+        return 'Acc {}\nPC {}\nIR {}'.format(str(self.ACC), str(self.PC), str(self.Instruction_Register))
 
     def _update(self):
         for attr in dir(self):
@@ -459,19 +389,21 @@ class minecraft_machine:
             f.update()
 
 
+
     def cycle(self):
-        for i in range(6):
+        for i in range(3):
+            #print('instruction_mem:', self.Instruction_Memory_port())
             self._update()
         self.PC.cycle()
-        self.IR.cycle()
+        self.Instruction_Register.cycle()
         self.ACC.cycle()
-        self.mm.cycle()
+        self.Main_Memory.cycle()
 
     def load_instructions(self, instructions):
-        self.instr_mem.mem[:len(instructions)] = instructions
+        self.Instruction_Memory.mem[:len(instructions)] = instructions
 
 def print_mem(config, mcm):
-    for i in mcm.mm.mem[config.lb : config.ub]:
+    for i in mcm.Main_Memory.mem[config.lb : config.ub]:
         if config.print_dec:
             print(to_dec(i), end =' ')
         if config.print_bin:
@@ -480,38 +412,46 @@ def print_mem(config, mcm):
 
 def main(config):
     with open(config.assembly, 'r') as assembly:
-        instructions = assembler.assemble(assembly)
-
+        try:
+            instructions, breakpoints = assemble(assembly, config.breakpoints)
+        except AssemblyException as e:
+            print(e)
+            exit()
     mcm = minecraft_machine(randomized = False)
     mcm.load_instructions(instructions)
 
-    print('num instructions',len(instructions))
 
-    for j in range(config.num_cycles):
+
+    for j in myrange(config.num_cycles):
         try:
-          #  
-            
+            if to_dec(mcm.PC.pc) in breakpoints:
+                if not config.nb:
+                    print()
+                    print('cycle', j)
+                    print(mcm)
+                    print_mem(config, mcm)
+                    input()
             mcm.cycle()
             if config.verbose:
                 print('cycle', j)
                 print(mcm)
-                print(mcm.mm.mem[:10])
+                print_mem(config, mcm)
+                input()
         except IndexError as e:
+            print()
+            print('cycle', j)
             print('Memory contents')
             print_mem(config, mcm)
             print(e)
             exit()
     print_mem(config, mcm)
-    
-    
-
-    
+      
 if __name__ == "__main__":
-    import assembler
+    from assembler import assemble, AssemblyException
     import sys
     import argparse
+    
     parser = argparse.ArgumentParser(description= 'Simulate CPU')
-  #  parser.add_argument('assembly', dest = 'assembly', help = 'path to assembly file to run')
     parser.add_argument('assembly', type = str, help = 'path to assembly file to run')
     parser.add_argument('-lb','--lower_bound', dest = 'lb', default = 0,type = int, help = 'lower bound on memory to print')
     parser.add_argument('-ub','--upper_bound', dest = 'ub',default = 20,type = int, help = 'upper bound on memory to print')
@@ -519,5 +459,11 @@ if __name__ == "__main__":
     parser.add_argument('-rd', '--rm_dec', dest = 'print_dec', action = 'store_false', help = 'whether it prints memory in decimal')
     parser.add_argument('-pb', '--print_bin', dest = 'print_bin', action = 'store_true', help = 'whether it prints memory in binary')
     parser.add_argument('-v', '--verbose', dest = 'verbose', action = 'store_true' )
+    parser.add_argument('-bp', '--breakpoint',default = [], dest = 'breakpoints', nargs = '+', type = int, help = 'Line numbers to set a break poinnt at' )
+    parser.add_argument('-nb', '--no_breakpoint', dest = 'nb', action = 'store_true' )
     config = parser.parse_args()
+    if not config.verbose:
+        from tqdm import trange as myrange 
+    else:
+        myrange = range
     main(config)
