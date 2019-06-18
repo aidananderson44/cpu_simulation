@@ -1,13 +1,26 @@
 import numpy as np
 from itertools import product
-class component:
-    def __init__(self):
-        pass
-    def update(self):
-        pass
-class control(component):
+
+class CPUException(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return str(self.message)
+
+def to_dec(b):
+    width = len(b)
+    return np.sum(b * 2**((width - 1) - np.arange(width) ))
+def to_bin(d, w_len = 8):
+    if d < 0:
+        d = 256 + d
+    b = [int(x) for x in list('{0:0b}'.format(d))]
+    l = min(w_len, len(b))
+    x = np.zeros(w_len, dtype = int)
+    x[-l:] = b[-l:]
+    return x
+
+class control():
     def __init__(self, opcode_s, ALU_s):
-        super().__init__()
         self.opcode_s = opcode_s
         self.ALU_s = ALU_s
         self.ALU_s_val = np.zeros(3, dtype = int)
@@ -44,12 +57,11 @@ class control(component):
         if str(o + a) in self.lookup_table:
             return self.lookup_table[str(o + a)][i]
         else:
-            raise Exception('Invalid Control')
+            raise CPUException('Invalid Control')
         
 
-class instruction_memory(component):
+class instruction_memory():
     def __init__(self,source, word_size = 13, num_words = 256, mem = None, randomized = True):
-        super().__init__()
         if mem is None:
             gen_f = np.random.rand if randomized else np.zeros
             self.mem = gen_f(word_size * num_words).reshape(num_words, word_size)
@@ -64,9 +76,8 @@ class instruction_memory(component):
         s = np.sum(self.source_val * 2**(7 - np.arange(8) ))
         return self.mem[s]
 
-class register(component):
+class register():
     def __init__(self, pc = None, source = None):
-        super().__init__()
         self.pc = pc
         self.source = source
     def cycle(self):
@@ -76,9 +87,9 @@ class register(component):
     def __str__(self):
         return '{}'.format(self.pc)
 
-class binary_op(component):
+
+class binary_op():
     def __init__(self, source1, source2, function):
-        super().__init__()
         self.source1 = source1
         self.source2 = source2
         self.source1_val = np.zeros(8)
@@ -90,34 +101,25 @@ class binary_op(component):
     def __call__(self):
         return self.fun(self.source1_val, self.source2_val)
 
-class wire(component):
+class wire():
     def __init__(self,source,width = 8, length = 1):
-        super().__init__()
         self.length = length
         self.width = width
         self.w = np.zeros(length*width, dtype = int).reshape(length, width)
         self.source = source
     
     def update(self):
-        
         x = self.source()
-        #w = np.zeros(self.length*self.width, dtype = int).reshape(self.length, self.width)
-        #w[:self.length-1] = self.w[1:] 
-        #w[self.length-1] = x
         self.w[:self.length-1] = self.w[1:] 
         self.w[self.length-1] = x
         
     def __call__(self):
         return self.w[0]
     
-
-class instruction_buffer(component):
+class instruction_buffer():
     def __init__(self, source):
-        super().__init__()
-        self.instr_b = np.zeros(13, dtype = int)
         self.IR = np.zeros(13, dtype = int)
         self.source = source
-
         port_names = ['opcode', 'ALU', 'Data']
         for i in port_names:
             def f_cr(self, x):
@@ -125,7 +127,6 @@ class instruction_buffer(component):
             setattr(self, 'port_{}'.format(i), f_cr(self, i))
 
     def cycle(self):
-      #  self.IR[:] = self.instr_b[:]
         self.IR[:] = self.source()[:]
 
     def __call__(self, ptype):
@@ -137,22 +138,20 @@ class instruction_buffer(component):
             elif(ptype == 'Data'):
                 return self.IR[-8:]
             else:
-                raise Exception('Invalid port')
+                raise CPUException('Invalid port')
     def __str__(self):
         return '{}'.format(self.IR)
 
     def __repr__(self):
         return str(self.instr_b) + str(self.IR)
 
-class demux(component):
+class demux():
     def __init__(self, dsource, csource, port_r = None,num = 2, width = 8):
-        super().__init__()
         self.csource = csource
         self.csource_val = np.zeros(width)
         self.dsource = dsource
         self.dsource_val = np.zeros(num)
         self.control = None
-
         self.width = width
         if(port_r is not None):
             num = len(port_r)
@@ -168,7 +167,6 @@ class demux(component):
         self.csource_val = self.csource()
     def __call__(self, i):
         control = list(self.csource_val)
-
         if(type(i) is not list):
             i = [i]
 
@@ -177,25 +175,8 @@ class demux(component):
         else:
             return np.zeros(self.width)
 
-
-def to_dec(b):
-    return np.sum(b * 2**(7 - np.arange(8) ))
-def to_bin(d, w_len = 8):
-    if d < 0:
-        d = 256 + d
-    try:
-        b = [int(x) for x in list('{0:0b}'.format(d))]
-    except:
-        return np.zeros(8)
-
-    l = min(w_len, len(b))
-    x = np.zeros(w_len, dtype = int)
-    x[-l:] = b[-l:]
-    return x
-
-class main_mem(component):
+class main_mem():
     def __init__(self, source1, source2, source3,source4 = None, randomized = True):
-        super().__init__()
         self.source1 = source1
         self.source2 = source2
         self.source1_val = np.zeros(8)
@@ -225,9 +206,8 @@ class main_mem(component):
         s = to_dec(getattr(self, 'source{}_val'.format(i)))
         return self.mem[s]
 
-class ALU(component):
+class ALU():
     def __init__(self, csource, csource_extra, dsource, acc_source):
-        super().__init__()
         self.csource = csource
         self.csource_extra = csource_extra
         self.dsource = dsource
@@ -249,6 +229,7 @@ class ALU(component):
             str([1, 1, 0]) : lambda x, y, acc : acc,
             str([1, 1, 1]) : lambda x, y, acc : acc
         }
+        
 
     def update(self):
         self.csource_val = self.csource()
@@ -277,7 +258,7 @@ class ALU(component):
             elif str(control) in self.acc_lookup:
                 return self.acc_lookup[str(control)](a, d, acc)
             else:
-                raise Exception('Invalid Control')
+                raise CPUException('Invalid Control')
             
         elif(i == 1):
             if 1 in control_extra:
@@ -293,8 +274,7 @@ class ALU(component):
                 elif d < 256 and d >= 128:
                     return to_bin(1) if a <= 0xff and a > 0 else np.zeros(8)
                 else:
-                    raise Exception('Invalid Data') 
-
+                    raise CPUException('Invalid Data') 
                     
             elif control == [1, 1, 1]: 
                 return data
@@ -319,11 +299,14 @@ class minecraft_machine:
         self.ALU_merge1 = binary_op(source1 = None, source2 = None, function = lambda x, y : x | y)
         self.ALU_merge2 = binary_op(source1 = None, source2 = None, function = lambda x, y : x | y)
 
-        self.PC_port = wire(self.PC)
-        self.ACC_port = wire(self.ACC)
+        self.PC_port1 = wire(self.PC)
+        self.PC_port2 = wire(self.PC)
+        self.ACC_port1 = wire(self.ACC)
+        self.ACC_port2 = wire(self.ACC)
         self.Instruction_Memory_port = wire(self.Instruction_Memory, width = 13)
         self.Instruction_Register_port_opcode = wire(self.Instruction_Register.port_opcode, width = 2)
-        self.Instruction_Register_port_ALU = wire(self.Instruction_Register.port_ALU, width = 3)
+        self.Instruction_Register_port_ALU1 = wire(self.Instruction_Register.port_ALU, width = 3)
+        self.Instruction_Register_port_ALU2 = wire(self.Instruction_Register.port_ALU, width = 3)
         self.Instruction_Register_port_Data = wire(self.Instruction_Register.port_Data)
         self.control_port_0 = wire(self.control.port_0, width = 1)
         self.control_port_1 = wire(self.control.port_1, width = 1)
@@ -348,26 +331,26 @@ class minecraft_machine:
 
         self.PC.source = self.adder_port
         self.ACC.source = self.ALU_port_acc
-        self.Instruction_Memory.source = self.PC_port
+        self.Instruction_Memory.source = self.PC_port1
         self.Instruction_Register.source = self.Instruction_Memory_port
-        self.control.ALU_s = self.Instruction_Register_port_ALU
+        self.control.ALU_s = self.Instruction_Register_port_ALU1
         self.control.opcode_s = self.Instruction_Register_port_opcode
         self.im_demux.dsource = self.Instruction_Register_port_Data
         self.im_demux.csource = self.control_port_0
         self.ls_ret_demux.dsource = self.im_demux_port_0
         self.ls_ret_demux.csource = self.control_port_1
         self.fmux.dsource = self.Main_Memory_port_0
-        self.fmux.csource = self.control.port_2
-        self.ALU.csource = self.Instruction_Register_port_ALU
-        self.ALU.csource_extra = self.control.port_3
+        self.fmux.csource = self.control_port_2
+        self.ALU.csource = self.Instruction_Register_port_ALU2
+        self.ALU.csource_extra = self.control_port_3
         self.ALU.dsource = self.ALU_merge2_port
-        self.ALU.acc_source = self.ACC_port
+        self.ALU.acc_source = self.ACC_port1
         self.Main_Memory.source1 = self.ls_ret_demux_port_0
         self.Main_Memory.source2 = self.fmux_port_1
         self.Main_Memory.source3 = self.store_merge_port
-        self.Main_Memory.source4 = self.ACC_port
+        self.Main_Memory.source4 = self.ACC_port2
         self.add1.source1 = self.ALU_port_skip
-        self.adder.source1 = self.PC_port
+        self.adder.source1 = self.PC_port2
         self.adder.source2 = self.add1_port
         self.store_merge.source1 = self.ls_ret_demux_port_1
         self.store_merge.source2 = self.fmux_port_2
@@ -383,16 +366,12 @@ class minecraft_machine:
     def _update(self):
         for attr in dir(self):
             f = getattr(self, attr)
-
-            if(not issubclass(type(f), component)):
-                continue
-            f.update()
-
-
-
+            try:
+                f.update()
+            except AttributeError:
+                pass
     def cycle(self):
         for i in range(3):
-            #print('instruction_mem:', self.Instruction_Memory_port())
             self._update()
         self.PC.cycle()
         self.Instruction_Register.cycle()
@@ -420,8 +399,6 @@ def main(config):
     mcm = minecraft_machine(randomized = False)
     mcm.load_instructions(instructions)
 
-
-
     for j in myrange(config.num_cycles):
         try:
             if to_dec(mcm.PC.pc) in breakpoints:
@@ -437,7 +414,7 @@ def main(config):
                 print(mcm)
                 print_mem(config, mcm)
                 input()
-        except IndexError as e:
+        except CPUException as e:
             print()
             print('cycle', j)
             print('Memory contents')
