@@ -30,9 +30,9 @@ instruction = {
             'divi' : [1, 1, 0, 1, 0],
             'div1' : [1, 1, 0, 1, 1],
             'divIndr' : [1, 1, 1, 0, 0],
-            'ori' : [1, 1, 1, 0, 1],
-            'or' : [1, 1, 1, 1, 0],
-            'orIndr' : [1, 1, 1, 1, 1],
+            'powi' : [1, 1, 1, 0, 1],
+            'pow' : [1, 1, 1, 1, 0],
+            'powIndr' : [1, 1, 1, 1, 1],
             }
 
 def to_bin(d):
@@ -61,62 +61,78 @@ def syntax_adjust(instr, expr):
         expr = '0'
     return expr
 
-def assemble(assembly):
+class AssemblyException(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return str(self.message)
+
+def assemble(assembly, breakpoints):
     b_instructions = []
     eval_dict = {'len' : len, 'dir' : dir, 'PC' : 0}
     num_builtin = len(eval_dict) + 1
     eval_dict['num_builtin'] = num_builtin
     macro_dict = {}
     assembly_list = []
-    for i in assembly:
-        assembly_list += [i]
+    breakpoint_pc = []
+    for i, j in zip(assembly, itertools.count(1)):
+        assembly_list += [(i, j)]
     
     in_macro = None
-    for l, i in zip(assembly_list, itertools.count(1)):
+    for (l, i), idx in zip(assembly_list, itertools.count(1)):
+
+        if i in breakpoints:
+            breakpoint_pc += [eval_dict['PC']]
         if(len(l) <= 1):
             continue
         words = l.split('\n')[0].split(' ')
         words = list(filter(lambda x : x is not '', words))
         if words[0][0] is '#':
             pass
-        elif words[0] in macro_dict:
-            vals = ' '.join(words[1:])
-            vals = vals.split(',')
-            num_vars = len(macro_dict[words[0]][0])
-            num_vals = len(vals)
-            vals = vals + ['']*(num_vars - num_vals)
-            v_dict = dict(zip(macro_dict[words[0]][0], vals))
-            for instr, j in zip(macro_dict[words[0]][1:], itertools.count(0)):
-                assembly_list.insert(i + j, instr.format(**v_dict)) 
-    
+        elif words[0] == 'BREAKPOINT':
+            breakpoint_pc += [eval_dict['PC']]
+
         elif words[0] == 'STARTMACRO':
+            if in_macro:
+                raise AssemblyException('Error on line {}. Cannot nest macros'.format(i))
             if len(words) < 2:
-                raise SyntaxError('Error on line {}. Macro definition must contantain a name.'.format(i))
+                raise AssemblyException('Error on line {}. Macro definition must contantain a name.'.format(i))
             in_macro = words[1]
             m_vars = words[2:]
             macro_dict[words[1]] = [tuple(m_vars)]
         elif words[0] == 'ENDMACRO':
             in_macro = None
-            
-            
+
+        elif words[0] in macro_dict:
+            vals = ' '.join(words[1:])
+            vals = vals.split(',')
+            num_vars = len(macro_dict[words[0]][0])
+            num_vals = len(vals)
+            if num_vars != num_vals:
+                raise AssemblyException('Error on line {}. Macro \'{}\' expected {} variables: {}.'.format(i, words[0], num_vars, macro_dict[words[0]][0]))
+            v_dict = dict(zip(macro_dict[words[0]][0], vals))
+            for instr, j in zip(macro_dict[words[0]][1:], itertools.count(0)):
+                assembly_list.insert(idx + j, (instr.format(**v_dict), i)) 
+
         elif in_macro:
             if words[0] == 'DEFINE':
-                raise SyntaxError('Invalid assembly syntax on line {}. Cannot put DEFINE statement in a macro'.format(i))
+                raise AssemblyException('Invalid assembly syntax on line {}. Cannot put DEFINE statement in a macro'.format(i))
             macro_dict[in_macro] += [' '.join(words)] 
-
+       
+    
         elif(words[0] == 'DEFINE'):  # check for previously defined token
             if len(words) < 3:
-                raise SyntaxError('Invalid assembly syntax on line {}. Missing arguments for #define. Must have name followed by constant.'.format(i))
+                raise AssemblyException('Invalid assembly syntax on line {}. Missing arguments for #define. Must have name followed by constant.'.format(i))
             expr_str = ' '.join(words[2:])
             try:
                 expr = str(eval(expr_str, {'__builtins__' : None}, eval_dict))
             except TypeError:
-                raise SyntaxError('Invalid expression on line {}.'.format(i))
+                raise AssemblyException('Invalid expression on line {}.'.format(i))
             
             if isNumeric(words[1]):
-                raise SyntaxError('Invalid assembly syntax on line {}. #define name \'{}\' cannot be numeric.'.format(i, words[1])) 
+                raise AssemblyException('Invalid assembly syntax on line {}. #define name \'{}\' cannot be numeric.'.format(i, words[1])) 
             elif not isInt(expr):
-                raise SyntaxError('Invalid assembly syntax on line {}. #define value \'{}\' must be an integer.'.format(i, expr))
+                raise AssemblyException('Invalid assembly syntax on line {}. #define value \'{}\' must be an integer.'.format(i, expr))
             else:     
                 eval_dict[words[1]] = int(expr)
 
@@ -127,17 +143,16 @@ def assemble(assembly):
                 try:  
                     expr = str(eval(expr_str, {'__builtins__' : None}, eval_dict))
                     if not isInt(expr):
-                        raise SyntaxError('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
+                        raise AssemblyException('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
                     
-                    expr = syntax_adjust(words[0], expr)
-                        
+                    expr = syntax_adjust(words[0], expr)     
                     instr = [instruction[words[0]] + to_bin(expr)]
                 except TypeError:
                     instr = [['i', i, words[0], expr_str, eval_dict['PC']]] 
             b_instructions += instr
             eval_dict['PC'] += 1
         else:
-            raise SyntaxError('Invalid assembly syntax on line {}. Token \'{}\' is not recognized.'.format(i, words[0]))
+            raise AssemblyException('Invalid assembly syntax on line {}. Token \'{}\' is not recognized.'.format(i, words[0]))
     final_instr = []
 
     for instr in b_instructions:
@@ -149,19 +164,18 @@ def assemble(assembly):
             try:
                 expr = str(eval(instr[3], {'__builtins__' : None}, ed))
             except TypeError:            
-                raise SyntaxError('Invalid expression on line {}.'.format(instr[1]))
+                raise AssemblyException('Invalid expression on line {}.'.format(instr[1]))
             if not isInt(expr):
-                raise SyntaxError('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
+                raise AssemblyException('Invalid expression on line {}. Expression {} evaluates to {} and not to an integer.'.format(i, expr_str, expr))
             expr = syntax_adjust(instr[2], expr)
             final_instr += [instruction[instr[2]] + to_bin(expr)] 
-    for i in assembly_list:
-        print(i)
-    return final_instr   
+
+    return final_instr, breakpoint_pc
 
 def main():
     a_file = sys.argv[1]
     with open(a_file, 'r') as assembly:
-        b_instructions = assemble(assembly)
+        b_instructions, _ = assemble(assembly, [])
     
     if(len(sys.argv) < 3):
         file_out = 'a.out'
