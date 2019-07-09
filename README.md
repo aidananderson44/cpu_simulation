@@ -55,6 +55,12 @@ return 1 #returns to return address at location 1
 This code will store the address immediately following the jal call in memory location 1. 
 Then the function foo will return to that address stored at location 1.
 
+The assembler interprets everything written after the first token of each line as python code. 
+The only included funtions are len, and dir. Therefore, the assembler will try to evaluate everything after the token
+into an integer. If it does not receive an integer, then an assembler error will be thrown. 
+This means operators such as +, -, *, \/\/ can be used as long as it statically evaluates to an integer. 
+It also means that the assembler uses python's '#' comments character.
+
 The following operations are supported
 * addi : [0, 0, 0, 0, 0]
 * add : [0, 1, 0, 0, 0]
