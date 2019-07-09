@@ -62,37 +62,37 @@ This means operators such as +, -, *, \/\/ can be used as long as it statically 
 It also means that the assembler uses python's '#' comments character.
 
 The following operations are supported
-* addi : [0, 0, 0, 0, 0]
-* add : [0, 1, 0, 0, 0]
-* addIndr : [1, 0, 0, 0, 0]
-* subi : [0, 0, 0, 0, 1]
-* sub : [0, 1, 0, 0, 1]
-* subIndr : [1, 0, 0, 0, 1]
-* muli : [0, 0, 0, 1, 0]
-* mul : [0, 1, 0, 1, 0]
-* mulIndr : [1, 0, 0, 1, 0]
-* modi : [0, 0, 0, 1, 1]
-* mod : [0, 1, 0, 1, 1]
-* modIndr : [1, 0, 0, 1, 1]
-* lsli : [0, 0, 1, 0, 0]
-* lsl : [0, 1, 1, 0, 0]
-* lslIndr : [1, 0, 1, 0, 0]
-* andi : [0, 0, 1, 0, 1]
-* and : [0, 1, 1, 0, 1]
-* andIndr : [1, 0, 1, 0, 1]
-* skipCondi : [0, 0, 1, 1, 0]
-* skipCond : [0, 1, 1, 1, 0]
-* skipCondIndr : [1, 0, 1, 1, 0]
-* jmpi : [0, 0, 1, 1, 1]
-* jmp : [0, 1, 1, 1, 1]
-* jmpIndr : [1, 0, 1, 1, 1]
-* store : [1, 1, 0, 0, 1]
-* storeIndr : [1, 1, 0, 0, 0]
-* clear : [0, 0, 0, 1, 0]
-* divi : [1, 1, 0, 1, 0]
-* div1 : [1, 1, 0, 1, 1]
-* divIndr : [1, 1, 1, 0, 0]
-* powi : [1, 1, 1, 0, 1]
-* pow : [1, 1, 1, 1, 0]
-* powIndr : [1, 1, 1, 1, 1]
+* addi         : 0x00
+* add          : 0x08
+* addIndr      : 0x10
+* subi         : 0x01
+* sub          : 0x09
+* subIndr      : 0x11
+* muli         : 0x02
+* mul          : 0x0a
+* mulIndr      : 0x12
+* modi         : 0x03
+* mod          : 0x0b
+* modIndr      : 0x13
+* lsli         : 0x04
+* lsl          : 0x0c
+* lslIndr      : 0x14
+* andi         : 0x05
+* and          : 0x0d
+* andIndr      : 0x15
+* skipCondi    : 0x06
+* skipCond     : 0x0e
+* skipCondIndr : 0x16
+* jmpi         : 0x07
+* jmp          : 0x0f
+* jmpIndr      : 0x17
+* store        : 0x19
+* storeIndr    : 0x18
+* clear        : 0x02
+* divi         : 0x1a
+* div1         : 0x1b
+* divIndr      : 0x1c
+* powi         : 0x1d
+* pow          : 0x1e
+* powIndr      : 0x1f
 
