@@ -62,37 +62,38 @@ This means operators such as +, -, *, \/\/ can be used as long as it statically 
 It also means that the assembler uses python's '#' comments character.
 
 The following operations are supported
-* addi         : 0x00
-* add          : 0x08
-* addIndr      : 0x10
-* subi         : 0x01
-* sub          : 0x09
-* subIndr      : 0x11
-* muli         : 0x02
-* mul          : 0x0a
-* mulIndr      : 0x12
-* modi         : 0x03
-* mod          : 0x0b
-* modIndr      : 0x13
-* lsli         : 0x04
-* lsl          : 0x0c
-* lslIndr      : 0x14
-* andi         : 0x05
-* and          : 0x0d
-* andIndr      : 0x15
-* skipCondi    : 0x06
-* skipCond     : 0x0e
-* skipCondIndr : 0x16
-* jmpi         : 0x07
-* jmp          : 0x0f
-* jmpIndr      : 0x17
-* store        : 0x19
-* storeIndr    : 0x18
-* clear        : 0x02
-* divi         : 0x1a
-* div1         : 0x1b
-* divIndr      : 0x1c
-* powi         : 0x1d
-* pow          : 0x1e
-* powIndr      : 0x1f
+| operation    | opcode |
+| addi         | 0x00 |
+| add          | 0x08 |
+| addIndr      | 0x10 |
+| subi         | 0x01 |
+| sub          | 0x09 |
+| subIndr      | 0x11 |
+| muli         | 0x02 |
+| mul          | 0x0a |
+| mulIndr      | 0x12 |
+| modi         | 0x03 |
+| mod          | 0x0b |
+| modIndr      | 0x13 |
+| lsli         | 0x04 |
+| lsl          | 0x0c |
+| lslIndr      | 0x14 |
+| andi         | 0x05 |
+| and          | 0x0d |
+| andIndr      | 0x15 |
+| skipCondi    | 0x06 |
+| skipCond     | 0x0e |
+| skipCondIndr | 0x16 |
+| jmpi         | 0x07 |
+| jmp          | 0x0f |
+| jmpIndr      | 0x17 |
+| store        | 0x19 |
+| storeIndr    | 0x18 |
+| clear        | 0x02 |
+| divi         | 0x1a |
+| div1         | 0x1b |
+| divIndr      | 0x1c |
+| powi         | 0x1d |
+| pow          | 0x1e |
+| powIndr      | 0x1f |
 
