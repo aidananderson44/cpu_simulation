@@ -45,13 +45,14 @@ jmp j
 addi
 ENDMACRO
 
-jal FOO 1
+jal FOO 1 #Jump and link. Jumps to foo, and links return address
 
-DEFINE FOO PC
-return 1
+DEFINE FOO PC #Function definition
+# Do STUFF
+return 1 #returns to return address at location 1
 ~~~
 
-This code will store the address, the address immediately following the jal call in memory location 1. 
+This code will store the address immediately following the jal call in memory location 1. 
 Then the function foo will return to that address stored at location 1.
 
 The following operations are supported
