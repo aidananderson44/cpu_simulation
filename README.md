@@ -62,7 +62,8 @@ This means operators such as +, -, *, \/\/ can be used as long as it statically 
 It also means that the assembler uses python's '#' comments character.
 
 The following operations are supported
-| operation    | opcode |
+| operation | opcode |
+|------------|------|
 | addi         | 0x00 |
 | add          | 0x08 |
 | addIndr      | 0x10 |
