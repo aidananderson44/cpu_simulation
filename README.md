@@ -47,7 +47,7 @@ ENDMACRO
 
 jal FOO 1
 
-DEFINE FOO
+DEFINE FOO PC
 return 1
 ~~~
 
