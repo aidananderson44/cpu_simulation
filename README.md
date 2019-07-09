@@ -24,8 +24,35 @@ The included assembler also supports the assembler directives:
 1. DEFINE [Token] [Val]: This tells the assembler to replace every instace of [Token] with [Val].
 1. STARTMACRO name arg1 arg2, ...: This creates a macro with an arbitrary number of arguments. Arguments inside of the macro must be surrounded by {}.
 1. ENDMACRO: end the macro.
+1. BREAKPOINT: sets a breakpoint in the execution
 
+The token PC is replaced by the current line number. Therefore, it is possible to make function calls. Consider the following:
+~~~
+STARTMACRO jal function ra
+clear
+addi PC + 4
+store {ra}
+jmpi {function} - PC
+addi
+ENDMACRO
 
+STARTMACRO return ra
+clear
+load {ra}
+addi -PC - 4
+store j
+jmp j
+addi
+ENDMACRO
+
+jal FOO 1
+
+DEFINE FOO
+return 1
+~~~
+
+This code will store the address, the address immediately following the jal call in memory location 1. 
+Then the function foo will return to that address stored at location 1.
 
 The following operations are supported
 * addi : [0, 0, 0, 0, 0]
